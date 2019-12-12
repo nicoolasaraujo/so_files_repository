@@ -10,25 +10,35 @@
 enum requestType {
 	getFile = 1,
 	sendFile = 2
-}request;
+} request;
 
-void sendFileToServer(int socket){
+void sendFileToServer(int *socket, struct sockaddr *addr, char * fileName){
 	char * data = "send file to server"; //deverá ser os bytes do arquivo selecionado
 	char * buffer = malloc(strlen(data) + 7); //Tamanho máximo verbo da requisião + delimitador
 	char * response;
-	strcpy(buffer, DELIMITER);
+	strcpy(buffer, "POST");
+	strcat(buffer, DELIMITER);
 	strcat(buffer, data);
 	printf("%s", buffer);
-	send(socket, buffer, strlen(buffer), 0 );
-	int size = read( socket , response, 1024);
+	sendto(*socket, buffer, strlen(buffer) , 0 , addr, sizeof(*addr));
+	// int size = read( socket , response, 1024);K
 
-	printf("%s", response);
+	// printf("%s", response);
 	
 }
 
-void getFileFromServer(){
-	char * buffer = "send file to server";
-	// send(socket, buffer, strlen(buffersend), 0 );
+void getFileFromServer(int *socket, struct sockaddr *addr, char * fileName){
+
+	char * buffer = malloc(strlen(fileName) + 7); //Tamanho máximo verbo da requisião + delimitador
+	char * response;
+	strcpy(buffer, "GET");
+	strcat(buffer, DELIMITER);
+	strcat(buffer, fileName);
+	buffer[strlen(buffer)] = '\0';
+	printf("%s\n", buffer);
+	printf("%s\n", fileName);
+	sendto(*socket, buffer, strlen(buffer) , 0 , addr, sizeof(*addr));
+	
 }
 
 int main(int argc, char const *argv[]) 
@@ -41,12 +51,13 @@ int main(int argc, char const *argv[])
 	int userInput;
 
 	//cria um socket udp para falar com o servidor
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
+	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) 
 	{ 
 		printf("\n Socket creation error \n"); 
 		return -1; 
 	}
-
+	memset((char *) &serv_addr, 0, sizeof(serv_addr));
+	
 	serv_addr.sin_family = AF_INET; 
 	serv_addr.sin_port = htons(PORT); 
 	 
@@ -57,30 +68,30 @@ int main(int argc, char const *argv[])
 		return -1; 
 	}
 
-	// tenta abrir conexão com o servidor
-	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
-	{ 
-		printf("\nConnection Failed \n"); 
-		return -1;
-	}
-	
 	do {
-		printf("O que deseja fazer?\n0.Buscar um arquivo\n1.Enviar um arquivo\n2.sair");
+		printf("O que deseja fazer?\n0.Buscar um arquivo\n1.Enviar um arquivo\n2.sair\n");
 		scanf("%d", &userInput);
+		fflush(stdout);
+		
 		if(userInput == 2)
 			break;
 
-		if(userInput == 1){
-			printf("Digite o nome do arquivo que deseja baixar.");
+		if(userInput == 0){
+			printf("Digite o nome do arquivo que deseja baixar\n");
 			scanf("%s", fileName);
 			//TODO: Implementar rotinar que envia o nome de um arquivo para o servidor
-			getFileFromServer();
+			getFileFromServer(&sock, (struct sockaddr *) &serv_addr, fileName);
 
-		} else if(userInput == 2) {
-			printf("Digite o nome do arquivo de que deseja enviar.");
+			// if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &amp;si_other, &amp;slen) == -1)
+			// {
+			// 	die(&quot;recvfrom()&quot;);
+			// }
+
+		} else if(userInput == 1) {
+			printf("Digite o nome do arquivo de que deseja enviar\n");
 			scanf("%s", fileName);
 			//TODO: Implementar rotina que abre o arquivo desejado pelo usuário, e enviar os bytes
-			sendFileToServer(sock);
+			sendFileToServer(&sock, (struct sockaddr *) &serv_addr, fileName);
 
 		} else {
 			printf("Entrada inválida");
