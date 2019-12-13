@@ -27,7 +27,7 @@ void sendFileToServer(int *socket, struct sockaddr *addr, char * fileName){
 	
 }
 
-void getFileFromServer(int *socket, struct sockaddr *addr, char * fileName){
+void getFileFromServer(int *socket, struct sockaddr *addr, char * fileName, int * slen){
 
 	char * buffer = malloc(strlen(fileName) + 7); //Tamanho máximo verbo da requisião + delimitador
 	char * response;
@@ -38,13 +38,25 @@ void getFileFromServer(int *socket, struct sockaddr *addr, char * fileName){
 	printf("%s\n", buffer);
 	printf("%s\n", fileName);
 	sendto(*socket, buffer, strlen(buffer) , 0 , addr, sizeof(*addr));
+	char buf[1024];
+	// while (1)
+	// {
+		if (recvfrom(*socket, buf, 1024, 0, addr, slen) == -1)
+		{
+			printf("erro\n");
+		}
+		puts(buf);
+
+
+	// }
+	
 	
 }
 
 int main(int argc, char const *argv[]) 
 {
-	int sock = 0, valread; 
 	struct sockaddr_in serv_addr; 
+	int sock = 0, slen = sizeof(serv_addr); 
 	char *hello = "Hello from client";
 	char buffer[1024] = {0};
 	char *fileName;
@@ -72,6 +84,7 @@ int main(int argc, char const *argv[])
 		printf("O que deseja fazer?\n0.Buscar um arquivo\n1.Enviar um arquivo\n2.sair\n");
 		scanf("%d", &userInput);
 		fflush(stdout);
+		setbuf(stdin, NULL);
 		
 		if(userInput == 2)
 			break;
@@ -80,7 +93,7 @@ int main(int argc, char const *argv[])
 			printf("Digite o nome do arquivo que deseja baixar\n");
 			scanf("%s", fileName);
 			//TODO: Implementar rotinar que envia o nome de um arquivo para o servidor
-			getFileFromServer(&sock, (struct sockaddr *) &serv_addr, fileName);
+			getFileFromServer(&sock, (struct sockaddr *) &serv_addr, fileName, &slen);
 
 			// if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &amp;si_other, &amp;slen) == -1)
 			// {
