@@ -3,9 +3,38 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <unistd.h> 
-#include <string.h> 
+#include <string.h>
+#include <sys/stat.h>
+#include <ctype.h>
+
 #define PORT 8080
 #define DELIMITER "#@#" //string que será utilizada para identificar o tipo da requsição GET: buscar um arquivo; POST: Enviar um arquivo
+#define FILES_DIRECTORY "./clientStorage"
+#define SEPARATOR "/"
+#define FILE_FOUND "00"
+#define FILE_NOT_FOUND = "01"
+
+void createStorageIfNotExists(){
+	struct stat st = {0};
+    if (stat(FILES_DIRECTORY, &st) == -1) {
+        mkdir(FILES_DIRECTORY, 0700);
+    }	
+}
+
+
+void saveFile(char * fileName, char * fileData){
+	printf("entrou");
+	char *completeFilePath;
+	completeFilePath = malloc(strlen(FILES_DIRECTORY) + strlen(fileName)+1 );
+	strcpy(completeFilePath, FILES_DIRECTORY);
+    strcat(completeFilePath, SEPARATOR);
+    strcat(completeFilePath, fileName);
+
+    printf("%s", completeFilePath);
+    FILE *f = fopen(completeFilePath, "wb");
+    fwrite(fileData, strlen(fileData), 1, f);
+    fclose(f);
+}
 
 enum requestType {
 	getFile = 1,
@@ -21,38 +50,36 @@ void sendFileToServer(int *socket, struct sockaddr *addr, char * fileName){
 	strcat(buffer, data);
 	printf("%s", buffer);
 	sendto(*socket, buffer, strlen(buffer) , 0 , addr, sizeof(*addr));
-	// int size = read( socket , response, 1024);K
-
-	// printf("%s", response);
-	
 }
 
 void getFileFromServer(int *socket, struct sockaddr *addr, char * fileName, int * slen){
 
 	char * buffer = malloc(strlen(fileName) + 7); //Tamanho máximo verbo da requisião + delimitador
-	char * response;
 	strcpy(buffer, "GET");
 	strcat(buffer, DELIMITER);
 	strcat(buffer, fileName);
+
 	buffer[strlen(buffer)] = '\0';
 	printf("%s\n", buffer);
 	printf("%s\n", fileName);
 	sendto(*socket, buffer, strlen(buffer) , 0 , addr, sizeof(*addr));
 	char buf[1024];
-	// while (1)
-	// {
-		if (recvfrom(*socket, buf, 1024, 0, addr, slen) == -1)
-		{
-			printf("erro\n");
-		}
-		puts(buf);
+	if (recvfrom(*socket, buf, 1024, 0, addr, slen) == -1)
+	{
+		printf("erro\n");
+	}
 
+	char * tmp = strtok(buf, DELIMITER);
+	char * code = tmp;
+	char * bufferData = strtok(NULL, DELIMITER);
+	bufferData[strlen(bufferData)] = '\0';
+	printf("%s", fileName);
+	printf("ResponseCode: %s\n", code);
+	printf("Data: %s\n", bufferData);
+	printf("achou o arquivos vai inserir\n");
+	saveFile(fileName, bufferData);
 
-	// }
-	
-	
 }
-
 int main(int argc, char const *argv[]) 
 {
 	struct sockaddr_in serv_addr; 
@@ -61,6 +88,8 @@ int main(int argc, char const *argv[])
 	char buffer[1024] = {0};
 	char *fileName;
 	int userInput;
+
+	createStorageIfNotExists();
 
 	//cria um socket udp para falar com o servidor
 	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) 
@@ -94,11 +123,6 @@ int main(int argc, char const *argv[])
 			scanf("%s", fileName);
 			//TODO: Implementar rotinar que envia o nome de um arquivo para o servidor
 			getFileFromServer(&sock, (struct sockaddr *) &serv_addr, fileName, &slen);
-
-			// if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &amp;si_other, &amp;slen) == -1)
-			// {
-			// 	die(&quot;recvfrom()&quot;);
-			// }
 
 		} else if(userInput == 1) {
 			printf("Digite o nome do arquivo de que deseja enviar\n");
